@@ -1,0 +1,37 @@
+--Script will become enabled after it is replicated and put on the player's character
+
+local Head = script.Parent
+local BaldingSpeed = Head.BaldingSpeed
+local NumberOfHair = Head.NumberOfHair
+local Hairstrands = Head.Hair:GetChildren()
+local ServerScriptService = game:GetService("ServerScriptService")
+local GameOnGoing = ServerScriptService.GameOnGoing
+
+local function Baldingfunction()
+	while task.wait(BaldingSpeed.Value) do
+		if NumberOfHair.Value >= 1 then
+			Hairstrands = Head.Hair:GetChildren()
+			local Hairstrand = Hairstrands[math.random(1,#Hairstrands)]
+			local HairFalling = coroutine.create(function()
+				local NewHair = Hairstrand:Clone()
+				NewHair.Parent = game.Workspace
+				NewHair.WeldConstraint:Destroy()
+				task.wait(5)
+				NewHair:Destroy()
+				coroutine.yield()
+			end)
+			coroutine.resume(HairFalling)
+			Hairstrand.Transparency = 1
+			NumberOfHair.Value-=1
+		else
+			local Humanoid = Head.Parent:FindFirstChild("Humanoid")
+			if Humanoid then
+				Humanoid:TakeDamage(100)
+				coroutine.yield()
+			end
+		end
+	end
+end
+
+local Balding = coroutine.create(Baldingfunction)
+coroutine.resume(Balding)

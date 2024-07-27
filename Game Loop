@@ -1,0 +1,86 @@
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local GameStart = ReplicatedStorage.GameStart
+local players = game.Players
+local ServerScriptService = game:GetService("ServerScriptService")
+local ServerStorage = game:GetService("ServerStorage")
+local GameOnGoing = ServerScriptService.GameOnGoing
+local AlivePlayers = game.Workspace.AlivePlayers
+
+
+local function GameBegin()
+	for _, player in players:GetChildren() do
+		local StringValue = Instance.new("StringValue")
+		StringValue.Parent = AlivePlayers
+		StringValue.Name = player.Name
+		local Character = player.Character
+		local Humanoid: Humanoid = Character:FindFirstChild("Humanoid") or Character:WaitForChild("Humanoid")
+		local Weld = Instance.new("Weld")
+		local NewHead = ServerScriptService.NoobHead:Clone()
+		NewHead.Parent = Character
+		NewHead.BaldingScript.Enabled = true
+		Weld.Parent = NewHead
+		Weld.Part1 = Character.Head
+		Weld.Part0 = NewHead
+		player.Character:SetPrimaryPartCFrame(game.Workspace.SpawnPoints["Part" .. tostring(math.random(1,#game.Workspace.SpawnPoints:GetChildren()))].CFrame)
+		local ScissorClone = ServerStorage.Scissors:Clone()
+		ScissorClone.Parent = Character
+		ScissorClone.Parent = player.Backpack
+		local ConditionerClone = ServerStorage.Conditioner:Clone()
+		ScissorClone.Parent = Character
+		ConditionerClone.Parent = player.Backpack
+		GameStart:FireClient(player)
+	end
+	
+end
+
+local function CountDownfunction(player, AmountOfTime)
+	local PlayerGui = player.PlayerGui
+	local ScreenGui = PlayerGui:WaitForChild("ScreenGui")
+	local GameStatusText = ScreenGui:WaitForChild("GameStatusText")
+	ScreenGui.Enabled = true
+	
+	for i = 1, AmountOfTime+1 do
+		task.wait(1)
+		GameStatusText.Text = "Game starts in: " .. AmountOfTime
+		AmountOfTime -= 1
+	end
+	
+	GameBegin()
+end
+
+
+local function UponHumanoidDisappearance(player)	
+	for _, playerString in AlivePlayers:GetChildren() do
+		if playerString.Name == player.Name then
+			AlivePlayers[player.Name]:Destroy()
+		end
+	end
+end
+
+players.PlayerAdded:Connect(function(player)
+	player.CharacterAdded:Connect(function(character)
+		local Humanoid = character:WaitForChild("Humanoid", 10)
+		if not Humanoid then
+			player:Kick("Your character didn't load properly, try rejoining the game")
+		end
+		Humanoid.Died:Connect(function()
+			UponHumanoidDisappearance(player)
+		end)
+		
+		
+		if #players:GetChildren() >= 1 and GameOnGoing.Value == false then
+			CountDownfunction(player, 5)
+			GameOnGoing.Value = true
+		end
+	end)
+end)
+
+--Removes player from the alive players folder when they leave the game
+
+players.PlayerRemoving:Connect(UponHumanoidDisappearance)
+
+AlivePlayers.ChildRemoved:Connect(function()
+	if #AlivePlayers:GetChildren() == 0 then
+		GameOnGoing.Value = false
+	end
+end)

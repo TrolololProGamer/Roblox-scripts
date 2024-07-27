@@ -1,0 +1,48 @@
+local Scissors = script.Parent
+local DeltaTime = os.time()
+local ScissorsCutSound = Scissors.Handle.ScissorsCutting
+local ScissorAttackAnimation = Scissors.ScissorAttack
+local players = game.Players
+
+Scissors.Activated:Connect(function()
+
+	if DeltaTime <= os.time() - 2 then
+		DeltaTime = os.time()
+		local HitBox = Instance.new("Part")
+		local character = Scissors.Parent
+		local HumanoidRootPart = character.HumanoidRootPart
+		local Humanoid: Humanoid = character.Humanoid
+		local Animator = Humanoid.Animator
+		local ScissorsAttackAnimationTrack: AnimationTrack = Animator:LoadAnimation(ScissorAttackAnimation)
+		ScissorsAttackAnimationTrack.Priority = Enum.AnimationPriority.Action
+		ScissorsAttackAnimationTrack:Play()
+		print("Attack animation should be playing")
+		HitBox.Parent = game.Workspace
+		HitBox.Size = Vector3.new(4,4,10)
+		HitBox.Massless = true
+		HitBox.CFrame = HumanoidRootPart.CFrame:ToWorldSpace(CFrame.new(1,0,-5))
+		HitBox.CanCollide = false
+		HitBox.Name = "HitBox"
+		HitBox.Transparency = 1
+		HitBox.Anchored = false
+		
+		local WeldConstraint = Instance.new("WeldConstraint")
+		WeldConstraint.Parent = HitBox
+		WeldConstraint.Part0 = HitBox
+		WeldConstraint.Part1 = HumanoidRootPart
+
+		local CollidingParts = game.Workspace:GetPartsInPart(HitBox)
+		local PeopleHit = {}
+		
+		for _, part in CollidingParts do
+			if part.Parent:FindFirstChild("Humanoid") and part.Parent ~= character and players:GetPlayerFromCharacter(part.Parent) and table.find(PeopleHit, players:GetPlayerFromCharacter(part.Parent).Name) == nil then
+				table.insert(PeopleHit, players:GetPlayerFromCharacter(part.Parent).Name)
+				part.Parent:FindFirstChild("Humanoid"):TakeDamage(10)
+				ScissorsCutSound:Play()
+				
+			end
+		end
+		
+		HitBox:Destroy()
+	end
+end)

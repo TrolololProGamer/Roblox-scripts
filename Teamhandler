@@ -1,0 +1,72 @@
+local module = {}
+
+--Replicated Storage
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TeamChangeFunction = ReplicatedStorage.TeamChangeFunction
+
+--Team
+local Teams = game:GetService("Teams")
+local PrisonerTeam = Teams.Prisoners
+local PoliceTeam = Teams.Police
+local UndecidedTeam = Teams.Undecided
+
+--Workspace
+local PrisonerSpawnPoints = game.Workspace.PrisonerSpawnPoints:GetChildren()
+local PoliceSpawnPoints = game.Workspace.PoliceSpawnPoints:GetChildren()
+
+--Functions
+
+local function Uniform(Character, Team: "Prisoner" | "Police")
+	local AssetShirt
+	local AssetPants
+	
+	if Team == "Prisoner" then
+		AssetShirt = 1041412313
+		AssetPants = 1059976755
+	elseif Team == "Police" then
+		AssetShirt = 1972067
+		AssetPants = 1960214
+	end
+
+	if not Character:FindFirstChildOfClass("Shirt") then
+		local NewPants = Instance.new("Shirt")
+		NewPants.Name = "Shirt"
+		NewPants.ShirtTemplate = "rbxassetid://" .. AssetShirt
+		NewPants.Parent = Character
+	else
+		Character:FindFirstChildOfClass("Shirt").ShirtTemplate = "rbxassetid://" .. AssetShirt
+	end
+
+	if not Character:FindFirstChildOfClass("Pants") then
+		local NewPants = Instance.new("Pants")
+		NewPants.Name = "Pants"
+		NewPants.PantsTemplate = "rbxassetid://" .. AssetPants
+		NewPants.Parent = Character
+	else
+		Character:FindFirstChildOfClass("Pants").PantsTemplate = "rbxassetid://" .. AssetPants
+	end
+end
+
+--Events
+TeamChangeFunction.OnServerInvoke = function(player, TeamString)
+	if player.Team == UndecidedTeam then
+		if TeamString == "Prisoner" then
+			player.Team = PrisonerTeam
+			local randomSpawnPoint = PrisonerSpawnPoints[math.random(1, #PrisonerSpawnPoints)]
+			player.Character:SetPrimaryPartCFrame(randomSpawnPoint.CFrame)
+			Uniform(player.Character, "Prisoner")
+			return true
+		elseif TeamString == "Police" then
+			player.Team = PoliceTeam
+			local randomSpawnPoint = PoliceSpawnPoints[math.random(1, #PoliceSpawnPoints)]
+			player.Character:SetPrimaryPartCFrame(randomSpawnPoint.CFrame)
+			Uniform(player.Character, "Police")
+			return true
+		end	
+	else
+		print("Player has already joined a team")
+		return false
+	end
+end
+
+return module

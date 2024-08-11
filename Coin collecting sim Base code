@@ -1,0 +1,300 @@
+-- Advanced Coin Collection Script with Expanded Features
+-- This script includes spawning coins, bonus coins, leaderboards, player respawn mechanics, achievements, and notifications.
+
+-- Services
+local Players = game:GetService("Players")
+local Workspace = game:GetService("Workspace")
+local Debris = game:GetService("Debris")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+-- Constants
+local COIN_TEMPLATE = script.CoinTemplate -- Reference to the coin template in the script
+local BONUS_COIN_TEMPLATE = script.BonusCoinTemplate -- Reference to the bonus coin template
+local COIN_SPAWN_INTERVAL = 5 -- Seconds between coin spawns
+local BONUS_COIN_SPAWN_INTERVAL = 20 -- Seconds between bonus coin spawns
+local COIN_LIFETIME = 20 -- How long a coin lasts before disappearing
+local BONUS_COIN_LIFETIME = 10 -- How long a bonus coin lasts before disappearing
+local SPAWN_AREA = Workspace.SpawnArea -- Define the area where coins can spawn
+
+local LEADERBOARD_UPDATE_INTERVAL = 30 -- Interval for updating the leaderboard
+local LEADERBOARD_SIZE = 10 -- Number of players to display on the leaderboard
+
+local ACHIEVEMENT_THRESHOLD = 100 -- Coins required for an achievement
+local NOTIFICATION_DURATION = 5 -- Duration of on-screen notifications
+
+-- Achievements table
+local Achievements = {
+	["First Coin"] = 1,
+	["Coin Collector"] = 50,
+	["Coin Master"] = 100
+}
+
+-- Function to create a new coin
+local function createCoin(isBonus)
+	local coin
+	if isBonus then
+		coin = BONUS_COIN_TEMPLATE:Clone()
+	else
+		coin = COIN_TEMPLATE:Clone()
+	end
+	coin.Parent = Workspace
+
+	-- Set random position within the spawn area
+	local x = math.random(SPAWN_AREA.Position.X - SPAWN_AREA.Size.X/2, SPAWN_AREA.Position.X + SPAWN_AREA.Size.X/2)
+	local y = SPAWN_AREA.Position.Y
+	local z = math.random(SPAWN_AREA.Position.Z - SPAWN_AREA.Size.Z/2, SPAWN_AREA.Position.Z + SPAWN_AREA.Size.Z/2)
+	coin.Position = Vector3.new(x, y, z)
+
+	-- Add coin to Debris service for automatic removal
+	if isBonus then
+		Debris:AddItem(coin, BONUS_COIN_LIFETIME)
+	else
+		Debris:AddItem(coin, COIN_LIFETIME)
+	end
+end
+
+-- Function to handle player touching a coin
+local function onCoinTouched(coin, player)
+	local character = player.Character
+	if character then
+		local humanoid = character:FindFirstChildOfClass("Humanoid")
+		if humanoid then
+			local coinValue = 1
+			if coin:IsA("BonusCoin") then
+				coinValue = 5 -- Bonus coins are worth more
+			end
+			coin:Destroy()
+			player.leaderstats.Coins.Value = player.leaderstats.Coins.Value + coinValue
+			print(player.Name .. " collected a coin! Total coins: " .. player.leaderstats.Coins.Value)
+
+			-- Check for achievements
+			for achievement, threshold in pairs(Achievements) do
+				if player.leaderstats.Coins.Value >= threshold and not player:FindFirstChild(achievement) then
+					local achievementInstance = Instance.new("BoolValue")
+					achievementInstance.Name = achievement
+					achievementInstance.Parent = player
+					print(player.Name .. " unlocked achievement: " .. achievement)
+
+					-- Trigger notification
+					local notification = Instance.new("TextLabel")
+					notification.Size = UDim2.new(0.3, 0, 0.1, 0)
+					notification.Position = UDim2.new(0.35, 0, 0.9, 0)
+					notification.Text = "Achievement Unlocked: " .. achievement
+					notification.Parent = player:WaitForChild("PlayerGui")
+					Debris:AddItem(notification, NOTIFICATION_DURATION)
+				end
+			end
+		end
+	end
+end
+
+-- Function to setup leaderstats for a player
+local function setupLeaderstats(player)
+	local leaderstats = Instance.new("Folder")
+	leaderstats.Name = "leaderstats"
+	leaderstats.Parent = player
+
+	local coins = Instance.new("IntValue")
+	coins.Name = "Coins"
+	coins.Value = 0
+	coins.Parent = leaderstats
+end
+
+-- Function to handle regular coin spawning
+local function startCoinSpawning()
+	while true do
+		createCoin(false) -- Regular coin
+		wait(COIN_SPAWN_INTERVAL)
+	end
+end
+
+-- Function to handle bonus coin spawning
+local function startBonusCoinSpawning()
+	while true do
+		wait(BONUS_COIN_SPAWN_INTERVAL)
+		createCoin(true) -- Bonus coin
+	end
+end
+
+-- Event handler for when a player joins the game
+local function onPlayerJoin(player)
+	setupLeaderstats(player)
+
+	player.CharacterAdded:Connect(function(character)
+		character.LeftLowerLeg.Touched:Connect(function(hit)
+			print("yo")
+			print(hit)
+			if hit:IsA("MeshPart") and hit.Name == "CoinTemplate" then
+				print("its a coin")
+				onCoinTouched(hit, player)
+			elseif hit:IsA("MeshPart") and hit.Name == "BonusCoinTemplate"then
+				print("It's a bonus coin")
+				onCoinTouched(hit, player)
+			end
+		end)
+		character.RightLowerLeg.Touched:Connect(function(hit)
+			print("yo")
+			print(hit)
+			if hit:IsA("MeshPart") and hit.Name == "CoinTemplate" then
+				print("its a coin")
+				onCoinTouched(hit, player)
+			elseif hit:IsA("MeshPart") and hit.Name == "BonusCoinTemplate"then
+				print("It's a bonus coin")
+				onCoinTouched(hit, player)
+			end
+		end)
+	end)
+end
+
+-- Bind player join event to the onPlayerJoin function
+Players.PlayerAdded:Connect(onPlayerJoin)
+
+-- Apply the leaderstats to players already in the game
+for _, player in pairs(Players:GetPlayers()) do
+	onPlayerJoin(player)
+end
+
+-- Start the coin spawning process
+coroutine.wrap(startCoinSpawning)()
+coroutine.wrap(startBonusCoinSpawning)()
+
+-- Additional: Handling player respawn
+local function onPlayerRespawn(player)
+	player.CharacterAdded:Connect(function(character)
+		character.Humanoid.Died:Connect(function()
+			wait(5) -- Delay before respawning
+			character:LoadCharacter() -- Respawn character
+		end)
+	end)
+end
+
+-- Bind player respawn event to the onPlayerRespawn function
+Players.PlayerAdded:Connect(onPlayerRespawn)
+
+-- Example: Triggering a random bonus coin spawn after 30 seconds
+wait(30)
+createCoin(true) -- Bonus coin
+
+-- Example: Give each player a starting coin
+for _, player in pairs(Players:GetPlayers()) do
+	player.leaderstats.Coins.Value = player.leaderstats.Coins.Value + 1
+end
+
+-- Custom: Checking for the highest score
+local function getHighestScorer()
+	local highestPlayer = nil
+	local highestScore = 0
+
+	for _, player in pairs(Players:GetPlayers()) do
+		if player.leaderstats.Coins.Value > highestScore then
+			highestScore = player.leaderstats.Coins.Value
+			highestPlayer = player
+		end
+	end
+
+	if highestPlayer then
+		print(highestPlayer.Name .. " has the highest score: " .. highestScore)
+	end
+end
+
+-- Check the highest scorer every minute
+while true do
+	wait(60)
+	getHighestScorer()
+end
+
+-- Leaderboard creation
+local function createLeaderboard()
+	local leaderboard = Instance.new("ScreenGui")
+	leaderboard.Name = "Leaderboard"
+	leaderboard.Parent = Players.LocalPlayer:WaitForChild("PlayerGui")
+
+	local frame = Instance.new("Frame")
+	frame.Size = UDim2.new(0.3, 0, 0.5, 0)
+	frame.Position = UDim2.new(0.7, 0, 0.2, 0)
+	frame.Parent = leaderboard
+
+	local title = Instance.new("TextLabel")
+	title.Text = "Top Players"
+	title.Size = UDim2.new(1, 0, 0.1, 0)
+	title.Parent = frame
+
+	for i = 1, LEADERBOARD_SIZE do
+		local entry = Instance.new("TextLabel")
+		entry.Name = "Player" .. i
+		entry.Text = ""
+		entry.Size = UDim2.new(1, 0, 0.1, 0)
+		entry.Position = UDim2.new(0, 0, i * 0.1, 0)
+		entry.Parent = frame
+	end
+end
+
+-- Update leaderboard with the top players
+local function updateLeaderboard()
+	local sortedPlayers = {}
+
+	for _, player in pairs(Players:GetPlayers()) do
+		table.insert(sortedPlayers, {Name = player.Name, Coins = player.leaderstats.Coins.Value})
+	end
+
+	table.sort(sortedPlayers, function(a, b)
+		return a.Coins > b.Coins
+	end)
+
+	local gui = Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Leaderboard")
+	local frame = gui:WaitForChild("Frame")
+
+	for i = 1, LEADERBOARD_SIZE do
+		local entry = frame:FindFirstChild("Player" .. i)
+		if sortedPlayers[i] then
+			entry.Text = sortedPlayers[i].Name .. ": " .. sortedPlayers[i].Coins .. " Coins"
+		else
+			entry.Text = ""
+		end
+	end
+end
+
+-- Start the leaderboard creation and updating process
+coroutine.wrap(function()
+	createLeaderboard()
+
+	while true do
+		wait(LEADERBOARD_UPDATE_INTERVAL)
+		updateLeaderboard()
+	end
+end)()
+
+-- Custom: Add a notification system
+local function sendNotification(player, message)
+	local notification = Instance.new("TextLabel")
+	notification.Size = UDim2.new(0.3, 0, 0.1, 0)
+	notification.Position = UDim2.new(0.35, 0, 0.8, 0)
+	notification.Text = message
+	notification.Parent = player:WaitForChild("PlayerGui")
+	Debris:AddItem(notification, NOTIFICATION_DURATION)
+end
+
+-- Example: Notify player when they reach 50 coins
+local function checkForMilestones(player)
+	if player.leaderstats.Coins.Value >= 50 and not player:FindFirstChild("Reached50Coins") then
+		local milestone = Instance.new("BoolValue")
+		milestone.Name = "Reached50Coins"
+		milestone.Parent = player
+		sendNotification(player, "Congratulations! You've collected 50 coins!")
+	end
+end
+
+-- Continuously check for milestones
+coroutine.wrap(function()
+	while true do
+		wait(10) -- Check every 10 seconds
+		for _, player in pairs(Players:GetPlayers()) do
+			checkForMilestones(player)
+		end
+	end
+end)()
+
+--Thanks for reading, OptimizedFunction 
+
+--Sincerely,
+--TrolololProGamer
